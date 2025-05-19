@@ -1,0 +1,8 @@
+Flask
+flask-cors
+Pillow
+requests
+python-dotenv
+opencv-python
+numpy
+paddlepaddle
