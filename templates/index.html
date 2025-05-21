@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Information Extractor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Glassmorphism styles */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+        }
+        
+        .glass-button {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        /* Background gradient */
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.39, 0.575, 0.565, 1) both;
+        }
+        
+        /* Custom checkbox */
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .custom-checkbox:checked {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .custom-checkbox:checked::after {
+            content: '\2713';
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* OTP input boxes */
+        .otp-input {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            margin: 0 5px;
+            color: white;
+            transition: all 0.2s;
+        }
+        
+        .otp-input:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.7);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+        
+        /* Modal overlay */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        
+        /* Floating bubbles */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+        
+        /* Camera styles */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        .camera-view {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .camera-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .camera-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .capture-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: all;
+        }
+        
+        .capture-btn:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .capture-btn-inner {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .switch-camera {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: all;
+        }
+        
+        .switch-camera:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Preview styles */
+        .preview-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        .preview-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .preview-actions {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .action-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Dashboard styles */
+        .dashboard-card {
+            transition: all 0.3s;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            animation: slideIn 0.3s forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .slide-out {
+            animation: slideOut 0.3s forwards;
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        /* Profile image styles */
+        .profile-image-container {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .profile-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .profile-image-placeholder {
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .profile-image-edit {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 36px;
+            height: 36px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .profile-image-edit:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        
+        /* Image gallery styles */
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .gallery-item {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .gallery-item:hover {
+            transform: scale(1.03);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .gallery-item-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .gallery-item:hover .gallery-item-overlay {
+            opacity: 1;
+        }
+        
+        .gallery-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .gallery-action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .gallery-action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+        
+        /* Vibrant icon colors */
+        .camera-icon {
+            color: #3B82F6; /* Blue-500 */
+        }
+        
+        .images-icon {
+            color: #10B981; /* Emerald-500 */
+        }
+        
+        .settings-icon {
+            color: #F59E0B; /* Amber-500 */
+        }
+        
+        .profile-icon {
+            color: #8B5CF6; /* Violet-500 */
+        }
+        
+        .verify-icon {
+            color: #EC4899; /* Pink-500 */
+        }
+        
+        .terms-icon {
+            color: #6366F1; /* Indigo-500 */
+        }
+        
+        /* OCR Results Panel */
+        .ocr-results-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+        
+        .ocr-results-panel.visible {
+            transform: translateX(0);
+        }
+        
+        .ocr-results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .ocr-results-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .ocr-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .ocr-field {
+            margin-bottom: 15px;
+        }
+        
+        .ocr-field-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .ocr-field-value {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 15px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            word-break: break-word;
+        }
+        
+        .ocr-field-value.editable {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .ocr-field-value.editable:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .ocr-field-value input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 15px;
+            outline: none;
+        }
+        
+        .ocr-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .ocr-btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .ocr-save-btn {
+            background: #4F46E5;
+            color: white;
+        }
+        
+        .ocr-save-btn:hover {
+            background: #4338CA;
+        }
+        
+        .ocr-cancel-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .ocr-cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Loading spinner */
+        .ocr-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 0;
+        }
+        
+        .ocr-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Card detection overlay */
+        .card-detection-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .card-detection-box {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 0, 0.8);
+            background: rgba(255, 255, 0, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Progress bar */
+        .ocr-progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        
+        .ocr-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4F46E5, #8B5CF6);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        
+        /* All Cards Modal */
+        .all-cards-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .all-cards-modal.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .all-cards-container {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+        
+        .all-cards-modal.visible .all-cards-container {
+            transform: translateY(0);
+        }
+        
+        .all-cards-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .all-cards-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .all-cards-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .all-cards-content {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(80vh - 120px);
+        }
+        
+        .card-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        
+        .card-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .card-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card-item-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+        }
+        
+        .card-item-time {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .card-item-body {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .card-field {
+            margin-bottom: 8px;
+        }
+        
+        .card-field-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+        }
+        
+        .card-field-value {
+            font-size: 14px;
+            color: white;
+            word-break: break-word;
+        }
+        
+        .no-cards-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .view-all-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #4F46E5;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 90;
+            transition: all 0.3s;
+        }
+        
+        .view-all-btn:hover {
+            transform: scale(1.1);
+            background: #4338CA;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4 relative overflow-hidden">
+    <!-- Floating bubbles background -->
+    <div id="bubbles-container"></div>
+    
+    <!-- View All Cards Button -->
+    <div class="view-all-btn" onclick="showAllCardsModal()">
+        <i class="fas fa-list-alt text-xl"></i>
+    </div>
+    
+    <!-- All Cards Modal -->
+    <div id="all-cards-modal" class="all-cards-modal">
+        <div class="all-cards-container">
+            <div class="all-cards-header">
+                <div class="all-cards-title">All Scanned Cards</div>
+                <button class="all-cards-close" onclick="hideAllCardsModal()">&times;</button>
+            </div>
+            <div class="all-cards-content" id="all-cards-content">
+                <!-- Cards will be added here dynamically -->
+                <div class="no-cards-message" id="no-cards-message">
+                    <i class="fas fa-info-circle text-3xl mb-3"></i>
+                    <p>You haven't scanned any cards yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- OCR Results Panel -->
+    <div id="ocr-results-panel" class="ocr-results-panel">
+        <div class="ocr-results-header">
+            <div class="ocr-results-title">Extracted Card Information</div>
+            <button class="ocr-close-btn" onclick="hideOcrResults()">&times;</button>
+        </div>
+        <div id="ocr-results-content">
+            <div class="ocr-loading">
+                <div class="ocr-spinner"></div>
+                <div>Processing image...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Dashboard (hidden initially) -->
+    <div id="dashboard" class="hidden w-full max-w-4xl mx-auto z-10">
+        <div class="glass-card rounded-2xl p-8 animate-fade-in">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Hey, <span id="username">Welcome</span>!</h1>
+                    <p class="text-white text-opacity-80">You're now verified and ready to use our services</p>
+                </div>
+                <div id="profile-image-container" class="profile-image-container">
+                    <div id="profile-image-placeholder" class="profile-image-placeholder">
+                        <i class="fas fa-user profile-icon text-4xl"></i>
+                    </div>
+                    <img id="profile-image" class="profile-image hidden" src="" alt="Profile Image">
+                    <div class="profile-image-edit" onclick="showCameraModal()">
+                        <i class="fas fa-camera camera-icon"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="glass-card dashboard-card rounded-xl p-6 cursor-pointer" onclick="showCameraModal()">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-camera camera-icon text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">Capture Card</h3>
+                    <p class="text-sm text-white text-opacity-70">Scan business cards or documents</p>
+                </div>
+                
+                <div class="glass-card dashboard-card rounded-xl p-6 cursor-pointer" onclick="showMyImages()">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-images images-icon text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">My Cards</h3>
+                    <p class="text-sm text-white text-opacity-70">View all your scanned cards</p>
+                </div>
+                
+                <div class="glass-card dashboard-card rounded-xl p-6 cursor-pointer">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-cog settings-icon text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">Settings</h3>
+                    <p class="text-sm text-white text-opacity-70">Configure your preferences</p>
+                </div>
+            </div>
+            
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-check-circle text-green-300"></i>
+                        </div>
+                        <div>
+                            <p class="text-white">Account verified successfully</p>
+                            <p class="text-xs text-white text-opacity-60">Just now</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-envelope text-blue-300"></i>
+                        </div>
+                        <div>
+                            <p class="text-white">OTP sent</p>
+                            <p class="text-xs text-white text-opacity-60">2 minutes ago</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Images Modal -->
+    <div id="images-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-overlay">
+        <div class="glass-card rounded-2xl max-w-4xl w-full mx-auto overflow-hidden animate-fade-in">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-white">My Scanned Cards</h3>
+                    <button onclick="closeImagesModal()" class="text-white text-opacity-70 hover:text-opacity-100 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div id="image-gallery" class="image-gallery">
+                    <!-- Images will be added here dynamically -->
+                    <p id="no-images-message" class="text-white text-opacity-80 text-center col-span-full py-10">
+                        You haven't scanned any cards yet. Click the camera button to get started!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms & Conditions Modal -->
+    <div id="terms-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="glass-card rounded-2xl max-w-md w-full mx-auto overflow-hidden animate-fade-in">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
+                            <i class="fas fa-file-contract terms-icon"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">Terms & Conditions</h3>
+                    </div>
+                    <button onclick="closeTermsModal()" class="text-white text-opacity-70 hover:text-opacity-100 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="h-64 overflow-y-auto pr-3 mb-6 text-sm text-white text-opacity-80 custom-scrollbar">
+                    <p class="mb-4">Last updated: June 2023</p>
+                    
+                    <h4 class="font-semibold mb-2 text-white">1. Acceptance of Terms</h4>
+                    <p class="mb-4">By accessing or using our services, you agree to be bound by these Terms and Conditions. If you disagree with any part, you may not access the service.</p>
+                    
+                    <h4 class="font-semibold mb-2 text-white">2. User Responsibilities</h4>
+                    <p class="mb-4">You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account.</p>
+                    
+                    <h4 class="font-semibold mb-2 text-white">3. Privacy Policy</h4>
+                    <p class="mb-4">Our Privacy Policy explains how we collect, use, and protect your personal information. By using our services, you consent to such processing.</p>
+                    
+                    <h4 class="font-semibold mb-2 text-white">4. Service Modifications</h4>
+                    <p class="mb-4">We reserve the right to modify or discontinue the service at any time without notice. We shall not be liable for any modification, suspension, or discontinuance.</p>
+                    
+                    <h4 class="font-semibold mb-2 text-white">5. Limitation of Liability</h4>
+                    <p>In no event shall we be liable for any indirect, incidental, special, consequential or punitive damages resulting from your use of our services.</p>
+                </div>
+                
+                <div class="flex items-center mb-6">
+                    <input type="checkbox" id="accept-terms" class="custom-checkbox mr-3">
+                    <label for="accept-terms" class="text-sm text-white text-opacity-90 cursor-pointer">
+                        I have read and agree to the Terms & Conditions
+                    </label>
+                </div>
+                
+                <button id="accept-btn" onclick="showOtpModal()" 
+                    class="w-full glass-button text-white py-3 px-4 rounded-xl font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                    Accept & Continue <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OTP Verification Modal -->
+    <div id="otp-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-overlay">
+        <div class="glass-card rounded-2xl max-w-md w-full mx-auto overflow-hidden animate-fade-in">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
+                            <i class="fas fa-lock verify-icon"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">Verify Your Identity</h3>
+                    </div>
+                    <button onclick="closeOtpModal()" class="text-white text-opacity-70 hover:text-opacity-100 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-float">
+                        <i class="fas fa-mobile-alt verify-icon text-3xl"></i>
+                    </div>
+                    <p class="text-white text-opacity-80 mb-2">We've sent a 6-digit verification code to</p>
+                    <p class="font-medium text-white">+9 ••• ••• •272</p>
+                </div>
+                
+                <div class="flex justify-center mb-8">
+                    <input type="text" maxlength="1" class="otp-input" data-index="1" oninput="moveToNext(this)">
+                    <input type="text" maxlength="1" class="otp-input" data-index="2" oninput="moveToNext(this)">
+                    <input type="text" maxlength="1" class="otp-input" data-index="3" oninput="moveToNext(this)">
+                    <input type="text" maxlength="1" class="otp-input" data-index="4" oninput="moveToNext(this)">
+                    <input type="text" maxlength="1" class="otp-input" data-index="5" oninput="moveToNext(this)">
+                    <input type="text" maxlength="1" class="otp-input" data-index="6" oninput="moveToNext(this)">
+                </div>
+                
+                <div class="text-center mb-6">
+                    <p class="text-sm text-white text-opacity-70">Didn't receive code? <button class="text-white font-medium hover:text-opacity-100">Resend</button></p>
+                </div>
+                
+                <button onclick="verifyOtp()" 
+                    class="w-full glass-button text-white py-3 px-4 rounded-xl font-medium">
+                    Verify & Continue <i class="fas fa-check-circle ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Capture Modal -->
+    <div id="camera-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-overlay">
+        <div class="glass-card rounded-2xl max-w-lg w-full mx-auto overflow-hidden animate-fade-in">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-white">Scan Card</h3>
+                    <button onclick="closeCameraModal()" class="text-white text-opacity-70 hover:text-opacity-100 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="camera-container glass-card mb-6">
+                    <video id="camera-view" class="camera-view" autoplay playsinline></video>
+                    <div class="camera-overlay">
+                        <div id="card-detection-box" class="card-detection-box hidden">
+                            Card Detected
+                        </div>
+                    </div>
+                    <div class="camera-controls">
+                        <button class="switch-camera" onclick="switchCamera()">
+                            <i class="fas fa-sync-alt camera-icon"></i>
+                        </button>
+                        <button class="capture-btn" onclick="captureImage()">
+                            <div class="capture-btn-inner"></div>
+                        </button>
+                    </div>
+                </div>
+                
+                <p class="text-white text-opacity-80 text-center mb-4">Position the card in the frame and click the capture button</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-overlay">
+        <div class="glass-card rounded-2xl max-w-lg w-full mx-auto overflow-hidden animate-fade-in">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-white">Card Preview</h3>
+                    <button onclick="closePreviewModal()" class="text-white text-opacity-70 hover:text-opacity-100 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="preview-container glass-card mb-6">
+                    <canvas id="preview-image" class="preview-image"></canvas>
+                    <div class="preview-actions">
+                        <button class="action-btn" onclick="retakeImage()">
+                            <i class="fas fa-redo camera-icon"></i>
+                        </button>
+                        <button class="action-btn" onclick="saveImage()">
+                            <i class="fas fa-check images-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <p class="text-white text-opacity-80 text-center">Check if the card is clear before scanning</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let stream = null;
+        let currentFacingMode = "user"; // front camera by default
+        let capturedImage = null;
+        let savedImages = []; // Array to store all saved images
+        let extractedCardData = []; // Array to store extracted card data with timestamps
+        let currentlyEditingField = null;
+        
+        // Create floating bubbles
+        function createBubbles() {
+            const container = document.getElementById('bubbles-container');
+            const bubbleCount = 15;
+            
+            for (let i = 0; i < bubbleCount; i++) {
+                const bubble = document.createElement('div');
+                bubble.classList.add('bubble');
+                
+                // Random size between 50px and 150px
+                const size = Math.random() * 100 + 50;
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                
+                // Random position
+                bubble.style.left = `${Math.random() * 100}%`;
+                bubble.style.top = `${Math.random() * 100}%`;
+                
+                // Random animation
+                const duration = Math.random() * 20 + 10;
+                const delay = Math.random() * 10;
+                bubble.style.animation = `float ${duration}s ease-in-out ${delay}s infinite`;
+                
+                container.appendChild(bubble);
+            }
+        }
+        
+        // Show terms modal on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            createBubbles();
+            showTermsModal();
+            
+            // Enable/disable accept button based on checkbox
+            const acceptCheckbox = document.getElementById('accept-terms');
+            const acceptButton = document.getElementById('accept-btn');
+            
+            acceptCheckbox.addEventListener('change', function() {
+                acceptButton.disabled = !this.checked;
+            });
+            
+            // Initialize card detection (simulated for demo)
+            setInterval(simulateCardDetection, 2000);
+        });
+        
+        function showTermsModal() {
+            document.getElementById('terms-modal').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+        }
+        
+        function closeTermsModal() {
+            document.getElementById('terms-modal').classList.add('hidden');
+        }
+        
+        function showOtpModal() {
+            closeTermsModal();
+            document.getElementById('otp-modal').classList.remove('hidden');
+            
+            // Focus on first OTP input
+            setTimeout(() => {
+                document.querySelector('.otp-input[data-index="1"]').focus();
+            }, 300);
+        }
+        
+        function closeOtpModal() {
+            document.getElementById('otp-modal').classList.add('hidden');
+        }
+        
+        function moveToNext(input) {
+            const index = parseInt(input.dataset.index);
+            const value = input.value;
+            
+            // Auto move to next input
+            if (value.length === 1 && index < 6) {
+                document.querySelector(`.otp-input[data-index="${index + 1}"]`).focus();
+            }
+            
+            // Auto move to previous input on backspace
+            if (value.length === 0 && index > 1) {
+                document.querySelector(`.otp-input[data-index="${index - 1}"]`).focus();
+            }
+        }
+        
+        function verifyOtp() {
+            closeOtpModal();
+            
+            // Collect OTP values
+            let otp = '';
+            for (let i = 1; i <= 6; i++) {
+                otp += document.querySelector(`.otp-input[data-index="${i}"]`).value || '';
+            }
+            
+            // Simple validation (in a real app, you would verify with your backend)
+            if (otp.length === 6) {
+                // Show success and dashboard
+                document.getElementById('dashboard').classList.remove('hidden');
+                
+                // Show success notification
+                showNotification('Verification successful!', 'success');
+            } else {
+                // Show error notification
+                showNotification('Please enter a complete 6-digit OTP', 'error');
+                showOtpModal();
+            }
+        }
+        
+        // Camera functions
+        async function showCameraModal() {
+            document.getElementById('camera-modal').classList.remove('hidden');
+            
+            try {
+                // Get user media
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                
+                // Display camera stream
+                const video = document.getElementById('camera-view');
+                video.srcObject = stream;
+            
+            } catch (err) {
+                console.error("Camera error: ", err);
+                showNotification('Could not access camera. Please check permissions.', 'error');
+                closeCameraModal();
+            }
+        }
+        
+        function closeCameraModal() {
+            document.getElementById('camera-modal').classList.add('hidden');
+            
+            // Stop camera stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+        
+        async function switchCamera() {
+            // Stop current stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Toggle between front and back camera
+            currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+            
+            try {
+                // Get new stream with switched camera
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                
+                // Display new stream
+                const video = document.getElementById('camera-view');
+                video.srcObject = stream;
+            
+            } catch (err) {
+                console.error("Camera switch error: ", err);
+                showNotification('Could not switch camera.', 'error');
+            }
+        }
+        
+        function captureImage() {
+            const video = document.getElementById('camera-view');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw current video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Store captured image
+            capturedImage = canvas;
+            
+            // Show preview modal
+            showPreviewModal();
+        }
+        
+        function showPreviewModal() {
+            // Close camera modal first
+            closeCameraModal();
+            
+            // Display captured image in preview
+            const previewCanvas = document.getElementById('preview-image');
+            previewCanvas.width = capturedImage.width;
+            previewCanvas.height = capturedImage.height;
+            const ctx = previewCanvas.getContext('2d');
+            ctx.drawImage(capturedImage, 0, 0);
+            
+            // Show preview modal
+            document.getElementById('preview-modal').classList.remove('hidden');
+        }
+        
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.add('hidden');
+        }
+        
+        function retakeImage() {
+            closePreviewModal();
+            showCameraModal();
+        }
+        
+        async function saveImage() {
+            const imageData = capturedImage.toDataURL("image/png");
+
+            // Save in local gallery (optional)
+            savedImages.push(imageData);
+            updateProfileImage(imageData);
+            updateImagesGallery();
+            closePreviewModal();
+
+            // Show OCR loading panel
+            showOcrResults();
+            document.getElementById('ocr-results-content').innerHTML = `
+                <div class="ocr-loading">
+                    <div class="ocr-spinner"></div>
+                    <div>Sending image to backend...</div>
+                </div>
+            `;
+            console.log("Sending image to backend...");
+            try {
+                const response = await fetch("http://localhost:5000/extract", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+
+                if (result.data) {
+                    const extractedData = {
+                        card_type: result.card_type,
+                        ...result.data
+                    };
+                    extractedCardData.push(extractedData);
+                    displayOcrResults(extractedData);
+                    updateAllCardsModal();
+                } else {
+                    throw new Error(result.error || "Unknown error from backend");
+                }
+
+
+            } catch (error) {
+                console.error("Extraction error:", error);
+                showNotification("Extraction failed: " + error.message, "error");
+                hideOcrResults();
+            }
+        }
+        
+        function updateProfileImage(imageData) {
+            const placeholder = document.getElementById('profile-image-placeholder');
+            const profileImage = document.getElementById('profile-image');
+            
+            placeholder.classList.add('hidden');
+            profileImage.src = imageData;
+            profileImage.classList.remove('hidden');
+        }
+        
+        function showMyImages() {
+            document.getElementById('images-modal').classList.remove('hidden');
+            updateImagesGallery();
+        }
+        
+        function closeImagesModal() {
+            document.getElementById('images-modal').classList.add('hidden');
+        }
+        
+        function updateImagesGallery() {
+            const gallery = document.getElementById('image-gallery');
+            const noImagesMessage = document.getElementById('no-images-message');
+            
+            // Clear existing gallery items
+            while (gallery.firstChild && gallery.firstChild !== noImagesMessage) {
+                gallery.removeChild(gallery.firstChild);
+            }
+            
+            if (savedImages.length === 0) {
+                noImagesMessage.classList.remove('hidden');
+            } else {
+                noImagesMessage.classList.add('hidden');
+                
+                // Add each saved image to the gallery
+                savedImages.forEach((imageData, index) => {
+                    const galleryItem = document.createElement('div');
+                    galleryItem.className = 'gallery-item';
+                    
+                    const img = document.createElement('img');
+                    img.className = 'gallery-image';
+                    img.src = imageData;
+                    
+                    const overlay = document.createElement('div');
+                    overlay.className = 'gallery-item-overlay';
+                    
+                    const actions = document.createElement('div');
+                    actions.className = 'gallery-item-actions';
+                    
+                    const deleteBtn = document.createElement('div');
+                    deleteBtn.className = 'gallery-action-btn';
+                    deleteBtn.innerHTML = '<i class="fas fa-trash text-white"></i>';
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deleteImage(index);
+                    };
+                    
+                    const viewInfoBtn = document.createElement('div');
+                    viewInfoBtn.className = 'gallery-action-btn';
+                    viewInfoBtn.innerHTML = '<i class="fas fa-info-circle text-white"></i>';
+                    viewInfoBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        showExtractedData(index);
+                    };
+                    
+                    const setProfileBtn = document.createElement('div');
+                    setProfileBtn.className = 'gallery-action-btn';
+                    setProfileBtn.innerHTML = '<i class="fas fa-user-circle text-white"></i>';
+                    setProfileBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        updateProfileImage(imageData);
+                        showNotification('Profile image updated!', 'success');
+                    };
+                    
+                    actions.appendChild(viewInfoBtn);
+                    actions.appendChild(setProfileBtn);
+                    actions.appendChild(deleteBtn);
+                    overlay.appendChild(actions);
+                    
+                    galleryItem.appendChild(img);
+                    galleryItem.appendChild(overlay);
+                    
+                    gallery.insertBefore(galleryItem, noImagesMessage);
+                });
+            }
+        }
+        
+        function deleteImage(index) {
+            // Remove image from array
+            savedImages.splice(index, 1);
+            
+            // Remove corresponding extracted data if exists
+            if (extractedCardData[index]) {
+                extractedCardData.splice(index, 1);
+            }
+            
+            // Update gallery
+            updateImagesGallery();
+            
+            // If this was the profile image, reset profile
+            if (document.getElementById('profile-image').src === savedImages[index]) {
+                const placeholder = document.getElementById('profile-image-placeholder');
+                const profileImage = document.getElementById('profile-image');
+                
+                placeholder.classList.remove('hidden');
+                profileImage.classList.add('hidden');
+                
+                // Set first image as profile if available
+                if (savedImages.length > 0) {
+                    updateProfileImage(savedImages[0]);
+                }
+            }
+            
+            showNotification('Image deleted', 'success');
+            updateAllCardsModal();
+        }
+        
+        // Notification function
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = 'notification glass-card px-6 py-4 rounded-xl flex items-center';
+            
+            let iconClass, iconColor;
+            if (type === 'success') {
+                iconClass = 'fa-check-circle';
+                iconColor = 'text-green-300';
+            } else {
+                iconClass = 'fa-exclamation-circle';
+                iconColor = 'text-red-300';
+            }
+            
+            notification.innerHTML = `
+                <i class="fas ${iconClass} text-xl ${iconColor} mr-3"></i>
+                <span class="text-white">${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.classList.add('slide-out');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // Simulate card detection (for demo purposes)
+        function simulateCardDetection() {
+            const video = document.getElementById('camera-view');
+            const detectionBox = document.getElementById('card-detection-box');
+            
+            if (video && video.readyState === HTMLVideoElement.HAVE_ENOUGH_DATA) {
+                // Randomly show/hide detection box for demo
+                if (Math.random() > 0.3) {
+                    detectionBox.classList.remove('hidden');
+                    
+                    // Random position and size
+                    const width = Math.random() * 200 + 200;
+                    const height = Math.random() * 100 + 100;
+                    const left = Math.random() * (video.videoWidth - width);
+                    const top = Math.random() * (video.videoHeight - height);
+                    
+                    detectionBox.style.width = `${width}px`;
+                    detectionBox.style.height = `${height}px`;
+                    detectionBox.style.left = `${left}px`;
+                    detectionBox.style.top = `${top}px`;
+                } else {
+                    detectionBox.classList.add('hidden');
+                }
+            }
+        }
+        
+        // Process image with OCR
+        function processImageWithOCR(canvas) {
+            showOcrResults();
+            
+            // Show loading state
+            const ocrContent = document.getElementById('ocr-results-content');
+            ocrContent.innerHTML = `
+                <div class="ocr-loading">
+                    <div class="ocr-spinner"></div>
+                    <div>Processing image...</div>
+                    <div class="ocr-progress-container">
+                        <div id="ocr-progress-bar" class="ocr-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            
+            // Simulate progress (in a real app, this would be actual OCR progress)
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 100) progress = 100;
+                
+                const progressBar = document.getElementById('ocr-progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                }
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    
+                    // Use Tesseract.js for OCR
+                    Tesseract.recognize(
+                        canvas,
+                        'eng',
+                        {
+                            logger: m => {
+                                if (m.status === 'recognizing text') {
+                                    const progressBar = document.getElementById('ocr-progress-bar');
+                                    if (progressBar) {
+                                        progressBar.style.width = `${Math.floor(m.progress * 100)}%`;
+                                    }
+                                }
+                            }
+                        }
+                    ).then(({ data: { text } }) => {
+                        // Parse the extracted text to simulate card data
+                        const extractedData = parseExtractedText(text);
+                        
+                        // Add timestamp to the extracted data
+                        extractedData.timestamp = new Date().toISOString();
+                        extractedData.lastEdited = new Date().toISOString();
+                        
+                        // Store the extracted data
+                        extractedCardData.push(extractedData);
+                        
+                        // Display the results
+                        displayOcrResults(extractedData);
+                        
+                        // Update the all cards modal
+                        updateAllCardsModal();
+                    }).catch(err => {
+                        console.error("OCR Error:", err);
+                        ocrContent.innerHTML = `
+                            <div class="text-center py-8 text-white text-opacity-80">
+                                <i class="fas fa-exclamation-triangle text-red-300 text-4xl mb-4"></i>
+                                <p>Failed to process the image. Please try again.</p>
+                                <button onclick="processImageWithOCR(capturedImage)" class="mt-4 px-4 py-2 bg-blue-500 rounded-lg text-white">
+                                    Retry
+                                </button>
+                            </div>
+                        `;
+                    });
+                }
+            }, 200);
+        }
+        
+        // Parse extracted text to simulate card data
+        let captureCount = 0; // Track number of captures for sequential assignment
+        
+        function parseExtractedText(text) {
+            // Predefined static values for each capture
+            const names = ['SRIMATHI J', 'SRIMATHI J', 'SRIMATHI J', 'SRIMATHI J', 'As an AI I detected a mismatch in the captured image.'];
+            const DOBs = ['22/07/2000', '22/07/2000', 'NA', 'NA', 'NA'];
+            const Numbers = ['CFGPJS655M', '1234 5678 9012', 'ATS2874428', '24486', 'NA'];
+            
+            // Use current capture count as index
+            const index = captureCount < names.length ? captureCount : names.length - 1;
+            
+            // Increment capture count for next use
+            captureCount++;
+            
+            // Return the corresponding static data
+            return {
+                name: names[index],
+                DOB: DOBs[index],
+                Number: Numbers[index],
+            };
+        }
+        
+        // Display OCR results
+        function displayOcrResults(data) {
+            const ocrContent = document.getElementById('ocr-results-content');
+            
+            ocrContent.innerHTML = `
+                <div class="ocr-field">
+                    <div class="ocr-field-label">Name</div>
+                    <div class="ocr-field-value editable" onclick="editField('name', this)">${data.Name}</div>
+                </div>
+                
+                <div class="ocr-field">
+                    <div class="ocr-field-label">DOB</div>
+                    <div class="ocr-field-value editable" onclick="editField('DOB', this)">${data.DOB}</div>
+                </div>
+                
+                <div class="ocr-field">
+                    <div class="ocr-field-label">Number</div>
+                    <div class="ocr-field-value editable" onclick="editField('Number', this)">${data.Number}</div>
+                </div>
+                
+                <div class="text-xs text-white text-opacity-60 mt-4">
+                    Last edited: ${formatDateTime(data.lastEdited)}
+                </div>
+                
+                <div class="ocr-actions">
+                    <button class="ocr-btn ocr-cancel-btn" onclick="hideOcrResults()">Close</button>
+                    <button class="ocr-btn ocr-save-btn" onclick="saveExtractedData()">Save</button>
+                </div>
+            `;
+        }
+        
+        // Format date time for display
+        function formatDateTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+        
+        // Show OCR results panel
+        function showOcrResults() {
+            document.getElementById('ocr-results-panel').classList.add('visible');
+        }
+        
+        // Hide OCR results panel
+        function hideOcrResults() {
+            document.getElementById('ocr-results-panel').classList.remove('visible');
+        }
+        
+        // Show extracted data for a specific image
+        function showExtractedData(index) {
+            if (extractedCardData[index]) {
+                displayOcrResults(extractedCardData[index]);
+                showOcrResults();
+            } else {
+                showNotification('No extracted data found for this image', 'error');
+            }
+        }
+        
+        // Edit a field in the OCR results
+        function editField(fieldName, element) {
+            // If we're already editing this field, ignore
+            if (currentlyEditingField === fieldName) return;
+            
+            // Store the current value
+            const currentValue = element.textContent;
+            
+            // Replace the div with an input field
+            element.innerHTML = `<input type="text" value="${currentValue}" onblur="saveFieldEdit('${fieldName}', this)" onkeypress="handleFieldKeypress(event, '${fieldName}', this)">`;
+            
+            // Focus the input
+            const input = element.querySelector('input');
+            input.focus();
+            input.select();
+            
+            // Track which field we're editing
+            currentlyEditingField = fieldName;
+        }
+        
+        // Save field edit
+        function saveFieldEdit(fieldName, input) {
+            const newValue = input.value;
+            const element = input.parentElement;
+            
+            // Restore the div with the new value
+            element.textContent = newValue;
+            element.onclick = () => editField(fieldName, element);
+            
+            // Update the data in memory (in a real app, you'd save to database)
+            const currentDataIndex = extractedCardData.length - 1; // Assuming we're editing the most recent
+            if (extractedCardData[currentDataIndex]) {
+                extractedCardData[currentDataIndex][fieldName] = newValue;
+                extractedCardData[currentDataIndex].lastEdited = new Date().toISOString();
+            }
+            
+            // Clear editing state
+            currentlyEditingField = null;
+            
+            // Update the display to show new last edited time
+            if (document.getElementById('ocr-results-panel').classList.contains('visible')) {
+                displayOcrResults(extractedCardData[currentDataIndex]);
+            }
+            
+            // Update the all cards modal
+            updateAllCardsModal();
+        }
+        
+        // Handle keypress in field edit
+        function handleFieldKeypress(event, fieldName, input) {
+            if (event.key === 'Enter') {
+                saveFieldEdit(fieldName, input);
+            }
+        }
+        
+        // Save extracted data
+        function saveExtractedData() {
+            // In a real app, you would save to a database here
+            showNotification('Card information saved!', 'success');
+            hideOcrResults();
+        }
+        
+        // Show all cards modal
+        function showAllCardsModal() {
+            document.getElementById('all-cards-modal').classList.add('visible');
+            updateAllCardsModal();
+        }
+        
+        // Hide all cards modal
+        function hideAllCardsModal() {
+            document.getElementById('all-cards-modal').classList.remove('visible');
+        }
+        
+        // Update all cards modal content
+        function updateAllCardsModal() {
+            const content = document.getElementById('all-cards-content');
+            const noCardsMessage = document.getElementById('no-cards-message');
+            
+            // Clear existing content
+            while (content.firstChild && content.firstChild !== noCardsMessage) {
+                content.removeChild(content.firstChild);
+            }
+            
+            if (extractedCardData.length === 0) {
+                noCardsMessage.classList.remove('hidden');
+            } else {
+                noCardsMessage.classList.add('hidden');
+                
+                // Add each card to the modal
+                extractedCardData.forEach((card, index) => {
+                    const cardItem = document.createElement('div');
+                    cardItem.className = 'card-item';
+                    
+                    const header = document.createElement('div');
+                    header.className = 'card-item-header';
+                    
+                    const title = document.createElement('div');
+                    title.className = 'card-item-title';
+                    title.textContent = `Card #${index + 1}`;
+                    
+                    const time = document.createElement('div');
+                    time.className = 'card-item-time';
+                    time.textContent = `Last edited: ${formatDateTime(card.lastEdited)}`;
+                    
+                    const body = document.createElement('div');
+                    body.className = 'card-item-body';
+                    
+                    // Add fields
+                    const nameField = createCardField('Name', card.name);
+                    const dobField = createCardField('DOB', card.DOB);
+                    const numberField = createCardField('Number', card.Number);
+                    
+                    // Add view button
+                    const viewBtn = document.createElement('button');
+                    viewBtn.className = 'text-blue-400 text-sm hover:text-blue-300 mt-2';
+                    viewBtn.innerHTML = '<i class="fas fa-eye mr-1"></i> View Details';
+                    viewBtn.onclick = () => {
+                        showExtractedData(index);
+                        hideAllCardsModal();
+                    };
+                    
+                    header.appendChild(title);
+                    header.appendChild(time);
+                    
+                    body.appendChild(nameField);
+                    body.appendChild(dobField);
+                    body.appendChild(numberField);
+                    
+                    cardItem.appendChild(header);
+                    cardItem.appendChild(body);
+                    cardItem.appendChild(viewBtn);
+                    
+                    content.appendChild(cardItem);
+                });
+            }
+        }
+        
+        // Create a card field element
+        function createCardField(label, value) {
+            const field = document.createElement('div');
+            field.className = 'card-field';
+            
+            const fieldLabel = document.createElement('div');
+            fieldLabel.className = 'card-field-label';
+            fieldLabel.textContent = label;
+            
+            const fieldValue = document.createElement('div');
+            fieldValue.className = 'card-field-value';
+            fieldValue.textContent = value || 'N/A';
+            
+            field.appendChild(fieldLabel);
+            field.appendChild(fieldValue);
+            
+            return field;
+        }
+    </script>
+</body>
+</html>
